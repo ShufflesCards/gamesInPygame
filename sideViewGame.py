@@ -209,11 +209,11 @@ class MovingPlatform(Platform):
                 self.player.rect.top = self.rect.bottom
         
         # Check the boundaries and see if we need to reverse direction
-        if (self.rect.bottom > self.boundary_bottom or self.rect.top < self.boundary_top):
+        if (not self.dy == 0) and (self.rect.bottom > self.boundary_bottom or self.rect.top < self.boundary_top):
             self.dy *= -1
  
         cur_pos = self.rect.x - self.level.world_shift
-        if (cur_pos < self.boundary_left or cur_pos > self.boundary_right):
+        if (not self.dx == 0) and (cur_pos < self.boundary_left or cur_pos > self.boundary_right):
             self.dx *= -1
 
 
@@ -230,6 +230,7 @@ class Level(object):
 
 
     def __init__(self, player):
+        # list of sprites for levels
         self.platform_list = pygame.sprite.Group()
         self.enemy_list = pygame.sprite.Group()
         self.collectable_list = pygame.sprite.Group()
@@ -237,11 +238,6 @@ class Level(object):
 
         # background image
         self.background = None
-
-        # list of sprites for levels
-        self.platform_list = None
-        self.enemy_list = None
-        self.collectable_list = None
 
         # how far the world has shifted left and right
         self.world_shift = 0
@@ -321,19 +317,18 @@ class Level_01(Level):
         
         
         for moving in movingplatforms:
-            print("jsjsad;lfdjsak;lfdjsjfkd;lalfdsakfdask;l")
-            block2 = MovingPlatform(moving[0], moving[1])
-            block2.rect.x = moving[2]
-            block2.rect.y = moving[3]
-            block2.boundary_left = moving[4]
-            block2.boundary_right = moving[5]
-            block2.boundary_top = moving[6]
-            block2.boundary_bottom = moving[7]
-            block2.dx = moving[8]
-            block2.dy = moving[9]
-            block2.player = self.player
-            block2.level = self
-            self.platform_list.add(block2)
+            block = MovingPlatform(moving[0], moving[1])
+            block.rect.x = moving[2]
+            block.rect.y = moving[3]
+            block.boundary_left = moving[4]
+            block.boundary_right = moving[5]
+            block.boundary_top = moving[6]
+            block.boundary_bottom = moving[7]
+            block.dx = moving[8]
+            block.dy = moving[9]
+            block.player = self.player
+            block.level = self
+            self.platform_list.add(block)
         
 
         for collectable in collectables:
