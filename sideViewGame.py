@@ -12,18 +12,22 @@ import pygame
 
 
 class Player(pygame.sprite.Sprite):
-    maxSpeed = 10
+    maxSpeed = 8
     # describe self as the object, the instance of the class
-    def __init__ (self, img, imageScalel=1): 
+    def __init__ (self, img, mainCharachter, imageScalel=1): 
         super().__init__() # Box is a child class calling its parent pygame.sprite.Sprite
         self.score = 0
 
         self.dx = 0
         self.dy = 0
+        self.mainCharachter = mainCharachter
         # x pos, y pos, x velocity, y velocity
         self.imageScale = 0.05
+
+        
         self.imageWidth = (pygame.image.load(img).get_width())*self.imageScale
         self.imageHeight = (pygame.image.load(img).get_height())*self.imageScale
+
         self.image = pygame.transform.scale_by(pygame.image.load(img), self.imageScale).convert()
         self.rect = self.image.get_rect(center = (800, 200))
 
@@ -33,7 +37,7 @@ class Player(pygame.sprite.Sprite):
     def __str__(self):
         return f"({self.rect.x}, {self.rect.y})   <{self.dx}, {self.dy}>"
 
-    def update(self, dt=1):
+    def update(self):
         
         # gravity
         self.calc_grav()
@@ -42,12 +46,7 @@ class Player(pygame.sprite.Sprite):
 
         # move left and right
         self.rect.x+=self.dx
-
-        # max speed
-        if (self.dx>self.maxSpeed):
-            self.dx=self.maxSpeed
-        elif (self.dx<-self.maxSpeed):
-            self.dx= -self.maxSpeed
+        
 
         '''
         if (self.dy>self.maxSpeed):
@@ -92,7 +91,27 @@ class Player(pygame.sprite.Sprite):
             print(self.score)
         
 
+        # hitting an enemy
+        if self.mainCharachter:
+            enemys_hit_list = pygame.sprite.spritecollide(self, self.level.enemy_list, False)
+            for enemy in enemys_hit_list:
+                if self.rect.y >= enemy.rect.y: # remove the = to make it so you an go through enemys
+                    if self.dx>0:
+                        # when moving right and hitting something. our right side hits the left side of the enemy
+                        #self.rect.right = enemy.rect.left
+                        self.dx = -self.dx *1.1 - 15
+                    elif self.dx<0:
+                        #self.rect.left = enemy.rect.right
+                        self.dx = -self.dx *1.1 + 15
+                if self.dy>0:
+                    # going down
+                    #self.rect.bottom = enemy.rect.top
+                    self.dy = -self.dy *1.1 - 2
+                    if self.dy <= -15:
+                        self.dy = -15
 
+
+        
         
     def jump(self):
         # move down a bit and see if there is a platform below us.
@@ -103,7 +122,7 @@ class Player(pygame.sprite.Sprite):
         self.rect.y -= 2
 
         if len(platform_hit_list)>0 or self.rect.bottom >= screen_height:
-            self.dy = -15
+            self.dy = -11
 
     def calc_grav(self):
         
@@ -115,7 +134,7 @@ class Player(pygame.sprite.Sprite):
                 self.dy+=0.4
         else:
             if self.dy==0:
-                self.dy=2
+                self.dy=1
             else:
                 self.dy+=0.5
 
@@ -135,7 +154,6 @@ class Player(pygame.sprite.Sprite):
             elif self.dx<=-0.5:
                 self.dx/=1.1
 
-
 class Collectable(pygame.sprite.Sprite):
     def __init__(self, dx, dy):
         super().__init__()
@@ -148,7 +166,6 @@ class Collectable(pygame.sprite.Sprite):
     def update(self):
         self.rect.y+=self.dy
         self.rect.x+=self.dx
-
 
 class Platform(pygame.sprite.Sprite):
     def __init__(self, width, height):
@@ -215,11 +232,6 @@ class MovingPlatform(Platform):
         cur_pos = self.rect.x - self.level.world_shift
         if (not self.dx == 0) and (cur_pos < self.boundary_left or cur_pos > self.boundary_right):
             self.dx *= -1
-
-
-
-
-
 
 class Level(object):
     """ This is a generic super-class used to define a level.
@@ -290,14 +302,20 @@ class Level_01(Level):
         self.level_limit = -1500
         self.level_type = self.level_type_list[0]
 
+
+        # level is 800x600
+        # player starts at x=240
         # Array with width, height, x, and y of platform
-        level = [[200, 70, 0, 400],
-                 [200, 60, 250, 400],
-                 [200, 70, 500, 400],
-                 [200, 60, 750, 400]
+        level = [[200, 70, 450, 530],
+                 [200, 70, 800, 430],
+                 [50, 50, 1300, 400],
+                 [50, 50, 1500, 325],
+                 [50, 50, 1300, 250],
+                 [10, 600, 2600, 0] # level limit
                  ]
 
-        collectables = [[100,300]]
+        # x, y, dx, dy
+        collectables = [[1500,100,0,0]]
         
 
         # Array with width, height, x, y, left boundry, right boundry, top boundry, bottom boundry, dx, dy
@@ -305,7 +323,8 @@ class Level_01(Level):
         # if not moving horizontally, set dx to 0
         # bounds will not matter
         movingplatforms = [[100, 50, 200, 300, 200, 500, None, None, 1, 0]]
-        # movingplatforms = [[]]
+        
+        enemys = [[100, 100]]
 
         # Go through the array above and add platforms
         for platform in level:
@@ -332,10 +351,18 @@ class Level_01(Level):
         
 
         for collectable in collectables:
-            item = Collectable(0,0)
+            item = Collectable(collectable[2],collectable[3])
             item.rect.x = collectable[0]
             item.rect.y = collectable[1]
             self.collectable_list.add(item)
+        
+        for enemy in enemys:
+            dude = Player(img, False)
+            dude.rect.x = enemy[0]
+            dude.rect.y = enemy[1]
+            dude.level = self
+            self.enemy_list.add(dude)
+            
 
 class Level_02(Level):
     """ Definition for level 2. """
@@ -382,7 +409,7 @@ pygame.display.set_caption('Window Caption')
 img = "theBox.png"
 clock = pygame.time.Clock()
 pygame.key.set_repeat(1, 20)
-player = Player(img)
+player = Player(img, True)
 
 # Make all the levels
 level_list = []
@@ -397,7 +424,7 @@ active_sprite_list = pygame.sprite.Group()
 player.level = current_level
 
 
-player.rect.x=340
+player.rect.x=240
 player.rect.y=screen_height-player.rect.height
 active_sprite_list.add(player)
 
@@ -409,15 +436,16 @@ while True:
 
 
     if keys[pygame.K_LEFT]:
-        player.dx-=1
+        if player.dx >= -player.maxSpeed:
+            player.dx-=1
         
     if keys[pygame.K_RIGHT]:
-        player.dx+=1
+        if player.dx <= player.maxSpeed:
+            player.dx+=1
 
         
     if keys[pygame.K_UP]:
         player.jump()
-
 
     # for loop through the event queue   
     for event in pygame.event.get(): 
@@ -426,10 +454,6 @@ while True:
         if event.type == pygame.QUIT: 
             pygame.quit()
             exit()
-        
-
-
-        
 
     # update the player
     active_sprite_list.update()
