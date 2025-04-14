@@ -257,6 +257,7 @@ class Level(object):
 
         # background image
         self.background = None
+        # level size is 1100-level_limit
 
         # how far the world has shifted left and right
         self.world_shift = 0
@@ -318,6 +319,7 @@ class Level_01(Level):
                  [50, 50, 1300, 400],
                  [50, 50, 1500, 325],
                  [50, 50, 1300, 250],
+                 [44, 34, 1449, 424],
                  [10, 600, 2600, 0] # level limit
                  ]
 
@@ -388,6 +390,8 @@ class Level_02(Level):
                  [210, 30, 850, 420],
                  [210, 30, 1000, 520],
                  [210, 30, 1120, 280],
+                 [50, 39, 1330, 367],
+                 [10, 600, 2100, 0] # level limit
                  ]
 
 
@@ -435,6 +439,7 @@ player.rect.x=240
 player.rect.y=screen_height-player.rect.height
 active_sprite_list.add(player)
 
+isFirstClick = True
 
 while True: 
     # Figure out if it was an arrow key. If so
@@ -460,6 +465,26 @@ while True:
         if event.type == pygame.QUIT: 
             pygame.quit()
             exit()
+
+        
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            
+            pos = pygame.mouse.get_pos()
+            mousex = int(pos[0]-current_level.world_shift)
+            mousey = int(pos[1])
+            if isFirstClick:
+                isFirstClick = False
+                blockAdd = [mousex, mousey]
+            else:
+                # adds height
+                blockAdd.insert(0, mousey-blockAdd[1])
+                blockAdd.insert(0, mousex-blockAdd[1])
+                print(blockAdd)
+                isFirstClick = True
+            
+
+            # block format: width, height, x, y
+
 
     # update the player
     active_sprite_list.update()
@@ -491,7 +516,7 @@ while True:
             player.level = current_level
         else:
             print("Game over") # add something better
-
+    
 
 
 
@@ -520,10 +545,7 @@ while True:
 
 
 
-    # pos = pygame.mouse.get_pos()
 
-    # player.rect.x = pos[0]
-    # player.rect.y = pos[1]
     
     
 
