@@ -18,20 +18,16 @@ import pygame
 # have that offset from a platform
 # function update: rect.x rect.y offset from moving platform rect.x rect.y
 
-class Player(pygame.sprite.Sprite):
-    maxSpeed = 8
-    # describe self as the object, the instance of the class
-    def __init__ (self, img, mainCharachter, imageScalel=1): 
+# will have to change the image stuff once I use a sprite sheet
+class Entity(pygame.sprite.Sprite):
+    def __init__ (self, imageScalel=1): 
         super().__init__() # Box is a child class calling its parent pygame.sprite.Sprite
-        self.score = 0
 
         self.dx = 0
         self.dy = 0
-        self.mainCharachter = mainCharachter
         # x pos, y pos, x velocity, y velocity
         self.imageScale = 0.05
 
-        
         self.imageWidth = (pygame.image.load(img).get_width())*self.imageScale
         self.imageHeight = (pygame.image.load(img).get_height())*self.imageScale
 
@@ -43,26 +39,8 @@ class Player(pygame.sprite.Sprite):
 
     def __str__(self):
         return f"({self.rect.x}, {self.rect.y})   <{self.dx}, {self.dy}>"
-
-    def update(self):
-        
-        # gravity
-        self.calc_grav()
-
-        self.calc_friction()
-
-        # move left and right
-        self.rect.x+=self.dx
-        
-
-        '''
-        if (self.dy>self.maxSpeed):
-            self.dy=self.maxSpeed
-        elif (self.dy<-self.maxSpeed):
-            self.dy= -self.maxSpeed
-        '''
-
-        # check collision
+    
+    def horzBlock(self):
         block_hit_list = pygame.sprite.spritecollide(self, self.level.platform_list, False)
         for block in block_hit_list:
             if self.dx>0:
@@ -71,14 +49,12 @@ class Player(pygame.sprite.Sprite):
             elif self.dx<0:
                 self.rect.left = block.rect.right
             
-            self.dx=0
+            self.dx = -self.dx
 
-
-        # move up and down
-        self.rect.y+=self.dy
-
+    def vertBlock(self):
         block_hit_list = pygame.sprite.spritecollide(self, self.level.platform_list, False)
         for block in block_hit_list:
+
             if self.dy>0:
                 # going down
                 self.rect.bottom = block.rect.top
@@ -92,45 +68,57 @@ class Player(pygame.sprite.Sprite):
                 # checks if what we hit is a moving platform
                 self.rect.x+=block.dx
 
-        collectable_hit_list = pygame.sprite.spritecollide(self, self.level.collectable_list, True)
-        for item in collectable_hit_list:
-            self.score += 1
-            print(self.score)
-        
-
-        # hitting an enemy
-        if self.mainCharachter:
-            enemys_hit_list = pygame.sprite.spritecollide(self, self.level.enemy_list, False)
-            for enemy in enemys_hit_list:
-                if self.rect.y >= enemy.rect.y: # remove the = to make it so you an go through enemys
-                    if self.dx>0:
-                        # when moving right and hitting something. our right side hits the left side of the enemy
-                        #self.rect.right = enemy.rect.left
-                        self.dx = -self.dx *1.1 - 15
-                    elif self.dx<0:
-                        #self.rect.left = enemy.rect.right
-                        self.dx = -self.dx *1.1 + 15
+    def vertEnemy(self): # need something to bounce off the player
+        enemys_hit_list = pygame.sprite.spritecollide(self, self.level.enemy_list, False)
+        for enemy in enemys_hit_list:
+            if enemy != self:
                 if self.dy>0:
-                    # going down
-                    #self.rect.bottom = enemy.rect.top
-                    self.dy = -self.dy *1.1 - 2
-                    if self.dy <= -15:
-                        self.dy = -15
+                    self.rect.bottom = enemy.rect.top
+                elif self.dy<0:
+                    self.rect.top = enemy.rect.bottom
+                
+                self.dy = 0
+    
+    def horzEnemy(self):
+        enemys_hit_list = pygame.sprite.spritecollide(self, self.level.enemy_list, False)
+        for enemy in enemys_hit_list:
+            if enemy != self:
+                if self.dx>0:
+                    # when moving right and hitting something. our right side hits the left side of the enemy
+                    #self.rect.right = enemy.rect.left
+                    self.dx = -self.dx
+                elif self.dx<0:
+                    #self.rect.left = enemy.rect.right
+                    self.dx = -self.dx
 
+    def horzPlayer(self):
+        hit = pygame.sprite.collide_rect(self, self.level.player)
+        if hit:
+            if ((self.dx >=0 and self.level.player.dx>=0) or (self.dx <=0 and self.level.player.dx<=0)):
+                self.dx = -self.dx
+                
+    def update(self):
 
+        # gravity
+        self.calc_grav()
+
+        # move left and right
+        self.rect.x+=self.dx
+
+        # check collision
+        self.horzBlock()
+
+        # move up and down
+        self.rect.y+=self.dy
+
+        self.vertBlock()
         
-        
-    def jump(self):
-        # move down a bit and see if there is a platform below us.
-        # Move down 2 pixels because it doesn't work well if we only move down 1
+        self.vertEnemy()
 
-        self.rect.y += 2
-        platform_hit_list = pygame.sprite.spritecollide(self, self.level.platform_list, False)
-        self.rect.y -= 2
+        self.horzEnemy()
 
-        if len(platform_hit_list)>0 or self.rect.bottom >= screen_height:
-            self.dy = -11
-
+        self.horzPlayer()
+    
     def calc_grav(self):
         
         # checking if we are on the Moon for low gravity
@@ -150,6 +138,85 @@ class Player(pygame.sprite.Sprite):
             self.dy=0
             self.rect.y = screen_height - self.rect.height
     
+    def die(self):
+        self.kill()
+
+
+
+class Player(Entity):
+    hp = 10
+    maxSpeed = 8
+    score = 0
+    def update(self):
+        super().calc_grav()
+        self.calc_friction()
+        self.rect.x+=self.dx
+        self.horzBlock() 
+        self.rect.y+=self.dy
+        super().vertBlock()
+        
+        
+        self.collect()
+        self.vertEnemy()
+        self.horzEnemy()
+
+
+
+        
+    def collect(self):
+        collectable_hit_list = pygame.sprite.spritecollide(self, self.level.collectable_list, True)
+        for item in collectable_hit_list:
+            self.score += 1
+            print(self.score)
+
+    def vertEnemy(self):
+        enemys_hit_list = pygame.sprite.spritecollide(self, self.level.enemy_list, False)
+        for enemy in enemys_hit_list:
+            if enemy != self:
+                if self.dy>0:
+                    enemy.kill()
+                    self.dy = -self.dy
+
+                
+                
+
+    def horzEnemy(self):
+        enemys_hit_list = pygame.sprite.spritecollide(self, self.level.enemy_list, False)
+        for enemy in enemys_hit_list:
+            if enemy != self:
+                if self.dx>0:
+                    # when moving right and hitting something. our right side hits the left side of the enemy
+                    #self.rect.right = enemy.rect.left
+                    self.dx = -self.dx * 1.1 - 5
+                elif self.dx<0:
+                    #self.rect.left = enemy.rect.right
+                    self.dx = -self.dx * 1.1 + 5
+                self.hp-=1
+                print(self.hp)
+
+    def horzBlock(self):
+        block_hit_list = pygame.sprite.spritecollide(self, self.level.platform_list, False)
+        for block in block_hit_list:
+            if self.dx>0:
+                # when moving right and hitting something. our right side hits the left side of the barrier
+                self.rect.right = block.rect.left
+            elif self.dx<0:
+                self.rect.left = block.rect.right
+            
+            self.dx = 0
+
+
+    def jump(self):
+        # move down a bit and see if there is a platform below us.
+        # Move down 2 pixels because it doesn't work well if we only move down 1
+
+        self.rect.y += 2
+        platform_hit_list = pygame.sprite.spritecollide(self, self.level.platform_list, False)
+        self.rect.y -= 2
+
+        if len(platform_hit_list)>0 or self.rect.bottom >= screen_height:
+            self.dy = -11
+
     def calc_friction(self):
         if self.level.level_type == "Ice":
             print("ice")
@@ -160,6 +227,8 @@ class Player(pygame.sprite.Sprite):
                 self.dx/=1.1
             elif self.dx<=-0.5:
                 self.dx/=1.1
+
+
 
 class Collectable(pygame.sprite.Sprite):
     def __init__(self, dx, dy):
@@ -333,7 +402,7 @@ class Level_01(Level):
         # bounds will not matter
         movingplatforms = [[100, 50, 200, 300, 200, 500, None, None, 1, 0]]
         
-        enemys = [[100, 100]]
+        enemys = [[0, 100, 1], [150, 100, -1], [500, 100, 0]]
 
         # Go through the array above and add platforms
         for platform in level:
@@ -366,9 +435,10 @@ class Level_01(Level):
             self.collectable_list.add(item)
         
         for enemy in enemys:
-            dude = Player(img, False)
+            dude = Entity(img)
             dude.rect.x = enemy[0]
             dude.rect.y = enemy[1]
+            dude.dx =enemy[2]
             dude.level = self
             self.enemy_list.add(dude)
             
@@ -420,7 +490,7 @@ pygame.display.set_caption('Window Caption')
 img = "theBox.png"
 clock = pygame.time.Clock()
 pygame.key.set_repeat(1, 20)
-player = Player(img, True)
+player = Player(img)
 
 # Make all the levels
 level_list = []
@@ -552,5 +622,4 @@ while True:
 
     
     
-
 
